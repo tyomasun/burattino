@@ -2,7 +2,6 @@ from dataclasses import dataclass, field
 
 __all__ = ("StrategySettings", "AccountSettings", "ShareSettings", "TradingSettings", "BlogSettings")
 
-
 @dataclass(eq=False, repr=True)
 class StrategySettings:
     name: str = ""
