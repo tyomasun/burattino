@@ -132,4 +132,4 @@ dmypy.json
 .idea/*
 TODO.txt
 *.pyc
-settings.ini
+conf.ini
