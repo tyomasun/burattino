@@ -18,7 +18,7 @@ from trade_system.strategies.strategy_factory import StrategyFactory
 from trading.trade_service import TradeService
 
 # the configuration file name
-CONFIG_FILE = "conf.ini"
+CONFIG_FILE = "conf/settings.ini"
 
 logger = logging.getLogger(__name__)
 
