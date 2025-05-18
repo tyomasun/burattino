@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import logging
+import traceback
 
 from blog.blogger import Blogger
 from configuration.settings import AccountSettings, TradingSettings, BlogSettings, StrategySettings
@@ -81,7 +82,7 @@ class TradeService:
                 #    datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc) + datetime.timedelta(seconds=10), \
                 #    datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc) + datetime.timedelta(minutes=12)
 
-                if is_trading_day and datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc) <= end_time:
+                if True: # is_trading_day and datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc) <= end_time:
                     logger.info(f"Today is trading day. Trading will start after {start_time}")
 
                     await TradeService.__sleep_to(
@@ -111,6 +112,8 @@ class TradeService:
                     logger.info("Today is not trading day. Sleep on next morning")
             except Exception as ex:
                 logger.error(f"Start trading today error: {repr(ex)}")
+                logger.error(traceback.format_exc())
+                raise ex
 
             logger.info("Sleep to next morning")
             await TradeService.__sleep_to_next_morning()

@@ -45,6 +45,7 @@ class Blogger:
         """
         The method sends message about depo size, list of stocks for today trading and greetings also.
         """
+        logger.info('today_trade_strategy = ' + str(today_trade_strategy))
         if self.__blog_status:
             self.__send_text_message("Greetings! We are starting.")
             self.__send_text_message(f"Depo size: {rub_before_trade_day:.2f} rub")

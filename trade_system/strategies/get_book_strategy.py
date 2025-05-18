@@ -2,19 +2,19 @@ import logging
 from decimal import Decimal
 from typing import Optional
 
-from tinkoff.invest import HistoricCandle
+from tinkoff.invest import OrderBook, HistoricCandle
 from tinkoff.invest.utils import quotation_to_decimal
 
 from configuration.settings import StrategySettings
 from trade_system.signal import Signal, SignalType
 from trade_system.strategies.base_strategy import IStrategy
 
-__all__ = ("ChangeAndVolumeStrategy")
+__all__ = ("GetBookStrategy")
 
 logger = logging.getLogger(__name__)
 
 
-class ChangeAndVolumeStrategy(IStrategy):
+class GetBookStrategy(IStrategy):
     """
     Example of trade strategy.
     IMPORTANT: DO NOT USE IT FOR REAL TRADING!
@@ -22,7 +22,7 @@ class ChangeAndVolumeStrategy(IStrategy):
     # Consts for read and parse dict with strategy configuration
 
     __SIGNAL_VOLUME_NAME = "SIGNAL_VOLUME"
-    __SIGNAL_MIN_CANDLES_NAME = "SIGNAL_MIN_CANDLES"
+    __SIGNAL_MIN_TICKS_NAME = "SIGNAL_MIN_TICKS"
     __LONG_TAKE_NAME = "LONG_TAKE"
     __LONG_STOP_NAME = "LONG_STOP"
     __SHORT_TAKE_NAME = "SHORT_TAKE"
@@ -31,9 +31,9 @@ class ChangeAndVolumeStrategy(IStrategy):
 
     def __init__(self, settings: StrategySettings) -> None:
         self.__settings = settings
-
+        
         self.__signal_volume = int(settings.settings[self.__SIGNAL_VOLUME_NAME])
-        self.__signal_min_candles = int(settings.settings[self.__SIGNAL_MIN_CANDLES_NAME])
+        self.__signal_min_ticks = int(settings.settings[self.__SIGNAL_MIN_TICKS_NAME])
         self.__signal_min_tail = Decimal(settings.settings[self.__SIGNAL_MIN_TAIL_NAME])
 
         self.__long_take = Decimal(settings.settings[self.__LONG_TAKE_NAME])
@@ -42,10 +42,14 @@ class ChangeAndVolumeStrategy(IStrategy):
         self.__short_take = Decimal(settings.settings[self.__SHORT_TAKE_NAME])
         self.__short_stop = Decimal(settings.settings[self.__SHORT_STOP_NAME])
 
+        self.__basic_asset_size = None
+        
         self.__recent_candles = []
+        self.__last_book = None
+        self.__last_paired_book = None
+        self.__spreads = []
 
-        self.__recent_books = []
-        self.__recent_paired_books = []
+        
 
     @property
     def settings(self) -> StrategySettings:
@@ -57,36 +61,24 @@ class ChangeAndVolumeStrategy(IStrategy):
     def update_short_status(self, status: bool) -> None:
         self.__settings.short_enabled_flag = status
 
-    def analyze_candles(self, candles: list[HistoricCandle]) -> Optional[Signal]:
-        """
-        The method analyzes candles and returns his decision.
-        """
-        logger.debug(f"Start analyze candles for {self.settings.figi} strategy {__name__}. "
-                     f"Candles count: {len(candles)}")
+    def update_basic_asset_figi(self, figi: str) -> None:
+        self.__settings.basic_asset_figi = figi
+        
+    def update_basic_asset_size(self, size: int) -> None:
+        self.__settings.basic_asset_size = size
 
-        if not self.__update_recent_candles(candles):
-            return None
-
-        if self.__is_match_long():
-            logger.info(f"Signal (LONG) {self.settings.figi} has been found.")
-            return self.__make_signal(SignalType.LONG, self.__long_take, self.__long_stop)
-
-        if self.settings.short_enabled_flag and self.__is_match_short():
-            logger.info(f"Signal (SHORT) {self.settings.figi} has been found.")
-            return self.__make_signal(SignalType.SHORT, self.__short_take, self.__short_stop)
-
-        return None
-
-    def analyze_books(self, books: list[HistoricBook]) -> Optional[Signal]:
+    def analyze_books(self, book: OrderBook) -> Optional[Signal]:
         """
         The method analyzes books and returns his decision.
         """
-        logger.debug(f"Start analyze books for {self.settings.figi} strategy {__name__}. "
-                     f"Books count: {len(candles)}")
-
-        if not self.__update_recent_candles(candles):
+        logger.info("analyze_books")
+        logger.debug(f"Start analyze books for {self.settings.figi} strategy {__name__}. ")
+        
+        
+        if not self.__update_recent_books(book):
             return None
-
+        
+        """
         if self.__is_match_long():
             logger.info(f"Signal (LONG) {self.settings.figi} has been found.")
             return self.__make_signal(SignalType.LONG, self.__long_take, self.__long_stop)
@@ -94,23 +86,42 @@ class ChangeAndVolumeStrategy(IStrategy):
         if self.settings.short_enabled_flag and self.__is_match_short():
             logger.info(f"Signal (SHORT) {self.settings.figi} has been found.")
             return self.__make_signal(SignalType.SHORT, self.__short_take, self.__short_stop)
-
+        """
         return None
 
-    def __update_recent_candles(self, candles: list[HistoricCandle]) -> bool:
-        self.__recent_candles.extend(candles)
-
-        if len(self.__recent_candles) < self.__signal_min_candles:
-            logger.debug(f"Candles in cache are low than required")
+    def __update_spread(self) -> bool:
+        
+        
+        if not self.__last_book or not self.__last_paired_book:
             return False
 
-        sorted(self.__recent_candles, key=lambda x: x.time)
+        # Calculate spread (two spreads: ask and bid)
+        spread = 0
+        
+        self.__spreads.append(spread)
+        
+        if len(self.__spreads) < self.__signal_min_ticks:
+            logger.debug(f"Spreds in cache are low than required")
+            return False
 
-        # keep only __signal_min_candles candles in cache
-        if len(self.__recent_candles) > self.__signal_min_candles:
-            self.__recent_candles = self.__recent_candles[len(self.__recent_candles) - self.__signal_min_candles:]
+        #sorted(dest, key=lambda x: x.time)
+        
+        # keep only __signal_min_ticks candles in cache
+        if len(self.__spreads) > self.__signal_min_ticks:
+            self.__spreads = self.__spreads[len(self.__spreads) - self.__signal_min_ticks:]
 
         return True
+        
+    def __update_recent_books(self, book) -> bool:
+        if book.figi == self.settings.figi:
+            self.__last_book = book            
+            return self.__update_spread()
+        elif book.figi == self.settings.basic_asset_figi:
+            self.__last_paired_book = book            
+            return self.__update_spread()
+        else:
+            logger.eror(f"Unknown book: {str(book)}")
+            return False
 
     def __is_match_long(self) -> bool:
         """
@@ -179,3 +190,9 @@ class ChangeAndVolumeStrategy(IStrategy):
         logger.info(f"Make Signal: {signal}")
 
         return signal
+
+    def analyze_candles(self, candles: list[HistoricCandle]) -> Optional[Signal]:
+        """
+        The method analyzes candles and returns his decision.
+        """
+        return None

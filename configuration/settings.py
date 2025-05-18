@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-__all__ = ("StrategySettings", "AccountSettings", "ShareSettings", "TradingSettings", "BlogSettings")
+__all__ = ("StrategySettings", "AccountSettings", "ShareSettings", "FutureSettings", "TradingSettings", "BlogSettings")
 
 @dataclass(eq=False, repr=True)
 class StrategySettings:
@@ -13,6 +13,8 @@ class StrategySettings:
     settings: dict = field(default_factory=dict)
     lot_size: int = 1
     short_enabled_flag: bool = True
+    basic_asset_figi: str = ""
+    basic_asset_size: int = 1
 
 
 @dataclass(eq=False, repr=True)
@@ -22,14 +24,28 @@ class AccountSettings:
 
 
 @dataclass(eq=False, repr=True)
-class ShareSettings:
+class InstrumentSettings:
     ticker: str = ""
+    figi: str = ""
     lot: int = 1
     short_enabled_flag: bool = False
     otc_flag: bool = False
     buy_available_flag: bool = False
     sell_available_flag: bool = False
     api_trade_available_flag: bool = False
+
+
+@dataclass(eq=False, repr=True)
+class ShareSettings(InstrumentSettings):
+    pass
+
+
+@dataclass(eq=False, repr=True)
+class FutureSettings(InstrumentSettings):
+    basic_asset: str = ""
+    basic_asset_size: int = 1
+    basic_asset_position_uid: str = ""
+    #lastTradeDate: datetime
 
 
 @dataclass(eq=False, repr=True)
