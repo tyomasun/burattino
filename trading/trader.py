@@ -165,6 +165,10 @@ class Trader:
             if True: # book.time > current_figi_book.time and datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc) <= signals_before_time:
                 logger.info("Go...")
                 for strategy in strategies[book.figi]:
+                    """
+                    if not self.__market_data_service.is_stock_ready_for_trading(strategy.settings.figi):
+                                logger.info(f"New signal has been skipped. Stock isn't ready for trading")
+                    """
                     signal_new = strategy.analyze_books(book)
                     
                     """

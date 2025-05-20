@@ -2,7 +2,7 @@ import logging
 from decimal import Decimal
 from typing import Optional
 
-from tinkoff.invest import OrderBook, HistoricCandle
+from tinkoff.invest import OrderBook, Order, HistoricCandle
 from tinkoff.invest.utils import quotation_to_decimal
 
 from configuration.settings import StrategySettings
@@ -41,13 +41,12 @@ class GetBookStrategy(IStrategy):
 
         self.__short_take = Decimal(settings.settings[self.__SHORT_TAKE_NAME])
         self.__short_stop = Decimal(settings.settings[self.__SHORT_STOP_NAME])
-
-        self.__basic_asset_size = None
         
         self.__recent_candles = []
         self.__last_book = None
         self.__last_paired_book = None
-        self.__spreads = []
+        self.__long_spreads = []
+        self.__short_spreads = []
 
         
 
@@ -65,6 +64,7 @@ class GetBookStrategy(IStrategy):
         self.__settings.basic_asset_figi = figi
         
     def update_basic_asset_size(self, size: int) -> None:
+        logger.debug(f"update_basic_asset_size {str(size)}")
         self.__settings.basic_asset_size = size
 
     def analyze_books(self, book: OrderBook) -> Optional[Signal]:
@@ -96,19 +96,45 @@ class GetBookStrategy(IStrategy):
             return False
 
         # Calculate spread (two spreads: ask and bid)
-        spread = 0
         
-        self.__spreads.append(spread)
+        bid = quotation_to_decimal(self.__last_book.bids[0].price)
+        ask = quotation_to_decimal(self.__last_book.asks[0].price)
+
+        base_bid = quotation_to_decimal(self.__last_paired_book.bids[0].price) * self.__settings.basic_asset_size
+        base_ask = quotation_to_decimal(self.__last_paired_book.asks[0].price) * self.__settings.basic_asset_size
+
         
-        if len(self.__spreads) < self.__signal_min_ticks:
+        logger.info(f"bid = {str(bid)}")
+        logger.info(f"ask = {str(ask)}")
+
+        logger.info(f"base_bid = {str(base_bid)}")
+        logger.info(f"base_ask = {str(base_ask)}")
+        
+        long_spread = ask - base_bid
+        short_spread = bid - base_ask
+        
+        if not self.__long_spreads or self.__long_spreads[-1] != long_spread:
+            self.__long_spreads.append(long_spread)
+        
+        if not self.__short_spreads or self.__short_spreads[-1] != short_spread:
+            self.__short_spreads.append(short_spread)
+        
+        
+        logger.info(f"long_spread = {str(self.__long_spreads)}")
+        logger.info(f"short_spread = {str(self.__short_spreads)}")
+        
+        spread_len = len(self.__long_spreads)
+        
+        if spread_len < self.__signal_min_ticks:
             logger.debug(f"Spreds in cache are low than required")
             return False
 
         #sorted(dest, key=lambda x: x.time)
         
         # keep only __signal_min_ticks candles in cache
-        if len(self.__spreads) > self.__signal_min_ticks:
-            self.__spreads = self.__spreads[len(self.__spreads) - self.__signal_min_ticks:]
+        if spread_len > self.__signal_min_ticks:
+            self.__long_spreads = self.__long_spreads[spread_len - self.__signal_min_ticks:]
+            self.__short_spreads = self.__short_spreads[spread_len - self.__signal_min_ticks:]
 
         return True
         
