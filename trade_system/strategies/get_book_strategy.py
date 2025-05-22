@@ -1,6 +1,8 @@
 import logging
+import numpy as np
 from decimal import Decimal
 from typing import Optional
+
 
 from tinkoff.invest import OrderBook, Order, HistoricCandle
 from tinkoff.invest.utils import quotation_to_decimal
@@ -67,36 +69,53 @@ class GetBookStrategy(IStrategy):
         logger.debug(f"update_basic_asset_size {str(size)}")
         self.__settings.basic_asset_size = size
 
+    
+
     def analyze_books(self, book: OrderBook) -> Optional[Signal]:
         """
         The method analyzes books and returns his decision.
         """
-        logger.info("analyze_books")
         logger.debug(f"Start analyze books for {self.settings.figi} strategy {__name__}. ")
         
         
         if not self.__update_recent_books(book):
             return None
         
-        """
         if self.__is_match_long():
-            logger.info(f"Signal (LONG) {self.settings.figi} has been found.")
-            return self.__make_signal(SignalType.LONG, self.__long_take, self.__long_stop)
+            logger.info(f"Long signal detected {self.settings.figi}, ask = {str(book.asks[0].price)}, qty = {str(book.asks[0].quantity)}")
+            #return self.__make_signal(SignalType.LONG, self.__long_take, self.__long_stop)
 
         if self.settings.short_enabled_flag and self.__is_match_short():
-            logger.info(f"Signal (SHORT) {self.settings.figi} has been found.")
-            return self.__make_signal(SignalType.SHORT, self.__short_take, self.__short_stop)
-        """
+            logger.info(f"Short signal detected {self.settings.figi}, bid = {str(book.bids[0].price)}, qty = {str(book.bids[0].quantity)}")
+            #return self.__make_signal(SignalType.SHORT, self.__short_take, self.__short_stop)
+        
         return None
 
+    def __add_spread(self, dest: list, value: Decimal) -> tuple[list, bool]:
+        if dest and dest[-1] == value:
+            return (dest, False)
+        
+        dest.append(value)
+
+        spread_len = len(dest)
+        
+        if spread_len < self.__signal_min_ticks:
+            logger.debug(f"Spreads in cache are low than required: {str(self.__signal_min_ticks)}")
+            return (dest, False)
+
+        #sorted(dest, key=lambda x: x.time)
+
+        # keep only __signal_min_ticks candles in cache
+        if spread_len > self.__signal_min_ticks:
+            dest = dest[spread_len - self.__signal_min_ticks:]
+
+        return (dest, True)
+        
+    
     def __update_spread(self) -> bool:
-        
-        
         if not self.__last_book or not self.__last_paired_book:
             return False
-
-        # Calculate spread (two spreads: ask and bid)
-        
+       
         bid = quotation_to_decimal(self.__last_book.bids[0].price)
         ask = quotation_to_decimal(self.__last_book.asks[0].price)
 
@@ -104,39 +123,17 @@ class GetBookStrategy(IStrategy):
         base_ask = quotation_to_decimal(self.__last_paired_book.asks[0].price) * self.__settings.basic_asset_size
 
         
-        logger.info(f"bid = {str(bid)}")
-        logger.info(f"ask = {str(ask)}")
-
-        logger.info(f"base_bid = {str(base_bid)}")
-        logger.info(f"base_ask = {str(base_ask)}")
-        
         long_spread = ask - base_bid
         short_spread = bid - base_ask
-        
-        if not self.__long_spreads or self.__long_spreads[-1] != long_spread:
-            self.__long_spreads.append(long_spread)
-        
-        if not self.__short_spreads or self.__short_spreads[-1] != short_spread:
-            self.__short_spreads.append(short_spread)
-        
-        
-        logger.info(f"long_spread = {str(self.__long_spreads)}")
-        logger.info(f"short_spread = {str(self.__short_spreads)}")
-        
-        spread_len = len(self.__long_spreads)
-        
-        if spread_len < self.__signal_min_ticks:
-            logger.debug(f"Spreds in cache are low than required")
-            return False
 
-        #sorted(dest, key=lambda x: x.time)
+        self.__long_spreads, is_long_spread_ready = self.__add_spread(self.__long_spreads, long_spread)
+        self.__short_spreads, is_short_spread_ready = self.__add_spread(self.__short_spreads, short_spread)
         
-        # keep only __signal_min_ticks candles in cache
-        if spread_len > self.__signal_min_ticks:
-            self.__long_spreads = self.__long_spreads[spread_len - self.__signal_min_ticks:]
-            self.__short_spreads = self.__short_spreads[spread_len - self.__signal_min_ticks:]
-
-        return True
+        logger.debug(f"long_spread = {str(self.__long_spreads)}")
+        logger.debug(f"short_spread = {str(self.__short_spreads)}")
+        
+        return is_long_spread_ready and is_short_spread_ready
+        
         
     def __update_recent_books(self, book) -> bool:
         if book.figi == self.settings.figi:
@@ -151,51 +148,25 @@ class GetBookStrategy(IStrategy):
 
     def __is_match_long(self) -> bool:
         """
-        Check for LONG signal. All candles in cache:
-        Green candle, tail lower than __signal_min_tail, volume more that __signal_volume
+        Check for LONG signal.
         """
-        for candle in self.__recent_candles:
-            logger.debug(f"Recent Candle to analyze {self.settings.figi} LONG: {candle}")
-            open_, high, close, low = quotation_to_decimal(candle.open), quotation_to_decimal(candle.high), \
-                                      quotation_to_decimal(candle.close), quotation_to_decimal(candle.low)
+        mean = np.average(self.__long_spreads)
+        dev = np.std(self.__long_spreads, ddof=2)
+        last = self.__long_spreads[-1]
 
-            if open_ < close \
-                    and ((high - close) / (high - low)) <= self.__signal_min_tail \
-                    and candle.volume >= self.__signal_volume:
-                logger.debug(f"Continue analyze {self.settings.figi}")
-                continue
-
-            logger.debug(f"Break analyze {self.settings.figi}")
-            break
-        else:
-            logger.debug(f"Signal detected {self.settings.figi}")
-            return True
-
-        return False
+        return last < mean - dev
+        
 
     def __is_match_short(self) -> bool:
         """
-        Check for LONG signal. All candles in cache:
-        Red candle, tail lower than __signal_min_tail, volume more that __signal_volume
+        Check for SHORT signal. 
         """
-        for candle in self.__recent_candles:
-            logger.debug(f"Recent Candle to analyze {self.settings.figi} SHORT: {candle}")
-            open_, high, close, low = quotation_to_decimal(candle.open), quotation_to_decimal(candle.high), \
-                                      quotation_to_decimal(candle.close), quotation_to_decimal(candle.low)
+        mean = np.average(self.__short_spreads)
+        dev = np.std(self.__short_spreads, ddof=2)
+        last = self.__short_spreads[-1]
 
-            if open_ > close \
-                    and ((close - low) / (high - low)) <= self.__signal_min_tail \
-                    and candle.volume >= self.__signal_volume:
-                logger.debug(f"Continue analyze {self.settings.figi}")
-                continue
-
-            logger.debug(f"Break analyze {self.settings.figi}")
-            break
-        else:
-            logger.debug(f"Signal detected {self.settings.figi}")
-            return True
-
-        return False
+        return last > mean + dev
+        
 
     def __make_signal(
             self,
