@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-__all__ = ("StrategySettings", "AccountSettings", "ShareSettings", "FutureSettings", "TradingSettings", "BlogSettings")
+__all__ = ("StrategySettings", "AccountSettings", "ShareSettings", "FutureSettings", "TradingSettings", "BlogSettings", "KeepSettings")
 
 @dataclass(eq=False, repr=True)
 class StrategySettings:
@@ -60,3 +60,7 @@ class BlogSettings:
     blog_status: bool
     bot_token: str
     chat_id: str
+
+@dataclass(eq=False, repr=True)
+class KeepSettings:
+    conn_string: str

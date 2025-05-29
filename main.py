@@ -6,6 +6,10 @@ from logging.handlers import RotatingFileHandler
 
 from blog.blog_worker import BlogWorker
 from blog.blogger import Blogger
+
+from keeper.keep_worker import KeepWorker
+from keeper.keeper import Keeper
+
 from configuration.configuration import ProgramConfiguration
 from invest_api.services.accounts_service import AccountService
 from invest_api.services.client_service import ClientService
@@ -23,7 +27,7 @@ CONFIG_FILE = "conf/settings.ini"
 logger = logging.getLogger(__name__)
 
 
-async def start_asyncio_trading(blog_worker_loop: BlogWorker, trade_service_loop: TradeService) -> None:
+async def start_asyncio_trading(blog_worker_loop: BlogWorker, keep_worker_loop: KeepWorker, trade_service_loop: TradeService) -> None:
     # Some asyncio MAGIC for Windows OS
     if sys.version_info[0] == 3 and sys.version_info[1] >= 8 and sys.platform.startswith('win'):
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -31,9 +35,11 @@ async def start_asyncio_trading(blog_worker_loop: BlogWorker, trade_service_loop
     logger.info("Start loop workers for trading")
 
     blog_task = asyncio.create_task(blog_worker_loop.worker())
+    keep_task = asyncio.create_task(keep_worker_loop.worker())
     trade_task = asyncio.create_task(trade_service_loop.worker())
 
     await blog_task
+    await keep_task
     await trade_task
 
 
@@ -42,7 +48,7 @@ def prepare_logs() -> None:
         os.makedirs("logs/")
 
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format="%(asctime)s - %(module)s - %(levelname)s - %(funcName)s: %(lineno)d - %(message)s",
         handlers=[RotatingFileHandler('logs/robot.log', maxBytes=100000000, backupCount=10, encoding='utf-8')],
         encoding="utf-8"
@@ -77,7 +83,11 @@ if __name__ == "__main__":
             # Queue to keep messages for TG. TradeService(via Blogger) produce, BlogWorker consume (send)
             messages_queue = asyncio.Queue()
 
+            # Queue to keep marketdata to DB. TradeService (via Kepper) produce, KeepWorker consume (save)
+            data_queue = asyncio.Queue()
+
             blog_worker = BlogWorker(config.blog_settings, messages_queue)
+            keep_worker = KeepWorker(config.keep_settings, data_queue)
             trade_service = TradeService(
                 account_service=account_service,
                 client_service=client_service,
@@ -87,12 +97,13 @@ if __name__ == "__main__":
                 stream_service=stream_service,
                 market_data_service=market_data_service,
                 blogger=Blogger(config.blog_settings, config.trade_strategy_settings, messages_queue),
+                keeper=Keeper(data_queue),
                 account_settings=config.account_settings,
                 trading_settings=config.trading_settings,
                 strategies=trade_strategies
             )
 
-            asyncio.run(start_asyncio_trading(blog_worker, trade_service))
+            asyncio.run(start_asyncio_trading(blog_worker, keep_worker, trade_service))
 
         else:
             logger.critical("Client verification has been failed")

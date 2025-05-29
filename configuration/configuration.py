@@ -1,6 +1,6 @@
 from configparser import ConfigParser
 
-from configuration.settings import StrategySettings, AccountSettings, TradingSettings, BlogSettings
+from configuration.settings import StrategySettings, AccountSettings, TradingSettings, BlogSettings, KeepSettings
 
 __all__ = ("ProgramConfiguration")
 
@@ -32,6 +32,10 @@ class ProgramConfiguration:
             delay_start_after_open=int(config["TRADING_SETTINGS"]["DELAY_START_AFTER_EXCHANGE_OPEN_SECONDS"]),
             stop_trade_before_close=int(config["TRADING_SETTINGS"]["STOP_TRADE_BEFORE_EXCHANGE_CLOSE_SECONDS"]),
             stop_signals_before_close=int(config["TRADING_SETTINGS"]["STOP_SIGNALS_BEFORE_EXCHANGE_CLOSE_MINUTES"])
+        )
+
+        self.__keep_settings = KeepSettings(
+            conn_string = config["KEEPER"]["CONN_STRING"]
         )
 
         self.__trade_strategy_settings = []
@@ -70,3 +74,7 @@ class ProgramConfiguration:
     @property
     def trading_settings(self) -> TradingSettings:
         return self.__trading_settings
+
+    @property
+    def keep_settings(self) -> KeepSettings:
+        return self.__keep_settings

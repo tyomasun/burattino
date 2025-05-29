@@ -77,16 +77,15 @@ class GetBookStrategy(IStrategy):
         """
         logger.debug(f"Start analyze books for {self.settings.figi} strategy {__name__}. ")
         
-        
         if not self.__update_recent_books(book):
             return None
-        
+
         if self.__is_match_long():
-            logger.info(f"Long signal detected {self.settings.figi}, ask = {str(book.asks[0].price)}, qty = {str(book.asks[0].quantity)}")
+            logger.info(f"Long signal detected {self.settings.figi}, ask = {str(self.__last_book.asks[0].price)}, qty = {str(self.__last_book.asks[0].quantity)}")
             #return self.__make_signal(SignalType.LONG, self.__long_take, self.__long_stop)
 
         if self.settings.short_enabled_flag and self.__is_match_short():
-            logger.info(f"Short signal detected {self.settings.figi}, bid = {str(book.bids[0].price)}, qty = {str(book.bids[0].quantity)}")
+            logger.info(f"Short signal detected {self.settings.figi}, bid = {str(self.__last_book.bids[0].price)}, qty = {str(self.__last_book.bids[0].quantity)}")
             #return self.__make_signal(SignalType.SHORT, self.__short_take, self.__short_stop)
         
         return None
@@ -122,9 +121,10 @@ class GetBookStrategy(IStrategy):
         base_bid = quotation_to_decimal(self.__last_paired_book.bids[0].price) * self.__settings.basic_asset_size
         base_ask = quotation_to_decimal(self.__last_paired_book.asks[0].price) * self.__settings.basic_asset_size
 
+        base_price = (base_bid + base_ask) / 2
         
-        long_spread = ask - base_bid
-        short_spread = bid - base_ask
+        long_spread = ask - base_price
+        short_spread = bid - base_price
 
         self.__long_spreads, is_long_spread_ready = self.__add_spread(self.__long_spreads, long_spread)
         self.__short_spreads, is_short_spread_ready = self.__add_spread(self.__short_spreads, short_spread)
@@ -151,7 +151,7 @@ class GetBookStrategy(IStrategy):
         Check for LONG signal.
         """
         mean = np.average(self.__long_spreads)
-        dev = np.std(self.__long_spreads, ddof=2)
+        dev = np.std(self.__long_spreads, ddof=3)
         last = self.__long_spreads[-1]
 
         return last < mean - dev
@@ -162,7 +162,7 @@ class GetBookStrategy(IStrategy):
         Check for SHORT signal. 
         """
         mean = np.average(self.__short_spreads)
-        dev = np.std(self.__short_spreads, ddof=2)
+        dev = np.std(self.__short_spreads, ddof=3)
         last = self.__short_spreads[-1]
 
         return last > mean + dev

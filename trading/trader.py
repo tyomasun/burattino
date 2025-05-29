@@ -9,6 +9,7 @@ from tinkoff.invest import Candle, OrderBook, OrderExecutionReportStatus
 from tinkoff.invest.utils import quotation_to_decimal
 
 from blog.blogger import Blogger
+from keeper.keeper import Keeper
 from invest_api.services.client_service import ClientService
 from invest_api.services.instruments_service import InstrumentService
 from invest_api.services.market_data_service import MarketDataService
@@ -39,7 +40,8 @@ class Trader:
             order_service: OrderService,
             stream_service: MarketDataStreamService,
             market_data_service: MarketDataService,
-            blogger: Blogger
+            blogger: Blogger,
+            keeper: Keeper
     ) -> None:
         self.__today_trade_results: TradeResults = None
         self.__client_service = client_service
@@ -49,6 +51,7 @@ class Trader:
         self.__stream_service = stream_service
         self.__market_data_service = market_data_service
         self.__blogger = blogger
+        self.__keeper = keeper
 
     async def trade_day(
             self,
@@ -163,6 +166,8 @@ class Trader:
             """
             
             if True: # book.time > current_figi_book.time and datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc) <= signals_before_time:
+
+                self.__keeper.save_data(book)
 
                 for strategy in strategies[book.figi]:
                     """
