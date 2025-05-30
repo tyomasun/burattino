@@ -228,6 +228,7 @@ class Trader:
                     """
             current_books[book.figi] = book
 
+        self.__keeper.save_data(None)
         logger.info("Today trading has been completed")
 
     

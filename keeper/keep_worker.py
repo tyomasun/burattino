@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import traceback
+import asyncpg
 
 from configuration.settings import KeepSettings
 
@@ -8,7 +9,7 @@ __all__ = ("KeepWorker")
 
 logger = logging.getLogger(__name__)
 
-BATCH_SIZE = 1000
+BATCH_SIZE = 2
 STOP_SIGNAL = None
 
 class KeepWorker:
@@ -25,7 +26,7 @@ class KeepWorker:
 
 
     async def worker(self) -> None:
-        # conn = await asyncpg.connect(user='user', password='pass', database='db')
+        conn = await asyncpg.connect("postgres://juman:zemlyanika7&@localhost:5432/mystery")
         try:
             batch = []
             while True:
@@ -34,21 +35,32 @@ class KeepWorker:
 
                 if data is STOP_SIGNAL:
                     if batch:
-                        # await conn.copy_records_to_table('items', records=batch)
-                        pass
+                        await self.__save_batch(batch)
                     self.__data_queue.task_done()
                     break
 
                 batch.append(data)
-                self.__queue_data.task_done()
+                self.__data_queue.task_done()
 
                 if len(batch) >= BATCH_SIZE:
-                    await conn.copy_records_to_table('items', records=batch)
+                    await self.__save_batch(batch)
                     batch = []
 
         except Exception as ex:
             logger.error(f"Error saving the data to the database: {repr(ex)}") 
             logger.error(traceback.format_exc())
         finally:
-            pass
-            # await conn.close()
+            await conn.close()
+            
+
+    async def __save_batch(conn, batch) -> None:
+        try:
+            await conn.copy_records_to_table(
+                'ORDER_BOOK',
+                records=batch
+            )
+            logger.debug(f"Batch saved")
+        except Exception as ex:
+            logger.error(f"Error COPY the data to the database: {repr(ex)}") 
+            logger.error(traceback.format_exc())
+                
