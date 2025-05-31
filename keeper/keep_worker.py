@@ -9,7 +9,7 @@ __all__ = ("KeepWorker")
 
 logger = logging.getLogger(__name__)
 
-BATCH_SIZE = 2
+BATCH_SIZE = 100
 STOP_SIGNAL = None
 
 class KeepWorker:
@@ -28,14 +28,14 @@ class KeepWorker:
     async def worker(self) -> None:
         conn = await asyncpg.connect("postgres://juman:zemlyanika7&@localhost:5432/mystery")
         try:
-            batch = []
+            batch: list[tuple] = []
             while True:
                 data = await self.__data_queue.get()
                 logger.debug(f"Get data from queue (size: {self.__data_queue.qsize()}): {data}")
 
                 if data is STOP_SIGNAL:
                     if batch:
-                        await self.__save_batch(batch)
+                        await self.__save_batch(conn, batch)
                     self.__data_queue.task_done()
                     break
 
@@ -43,7 +43,7 @@ class KeepWorker:
                 self.__data_queue.task_done()
 
                 if len(batch) >= BATCH_SIZE:
-                    await self.__save_batch(batch)
+                    await self.__save_batch(conn, batch)
                     batch = []
 
         except Exception as ex:
@@ -53,11 +53,20 @@ class KeepWorker:
             await conn.close()
             
 
-    async def __save_batch(conn, batch) -> None:
+    async def __save_batch(self, conn: asyncpg.Connection, batch: list[tuple]) -> None:
         try:
+            logger.debug(f"Try copy batch: {str(batch)}")
             await conn.copy_records_to_table(
-                'ORDER_BOOK',
-                records=batch
+                "order_book",
+                records=batch,
+                columns=[
+                    'ticker',
+                    'datetime',
+                    'bid_price_1',
+                    'bid_qty_1',
+                    'ask_price_1',
+                    'ask_qty_1'
+                ]
             )
             logger.debug(f"Batch saved")
         except Exception as ex:

@@ -16,47 +16,48 @@ class Keeper:
     def __init__(self, data_queue: asyncio.Queue) -> None:
         self.__data_queue = data_queue
 
-    def save_data(self, data: OrderBook):
+    def save_data(self, data: OrderBook, ticker: str) -> None:
         try:
             logger.debug(f"Put data to db queue {str(data)}")
 
-            self.__data_queue.put_nowait(self.__flatten_order_book(data))
+            self.__data_queue.put_nowait(self.__flatten_order_book(data, ticker))
         except Exception as ex:
             logger.error(f"Error put data to db queue {repr(ex)}")
             logger.error(traceback.format_exc())
             
 
-    def __flatten_order_book(self, order_book: OrderBook , depth=10) -> dict:
-        # Преобразуем bids в плоскую структуру
-        bids_data = {}
-        for i in range(1, depth + 1):
-            if i <= len(order_book.bids):
-                bid = order_book.bids[i-1]
-                bids_data[f'bid_price_{i}'] = quotation_to_decimal(bid.price)
-                bids_data[f'bid_qty_{i}'] = bid.quantity
-            else:
-                bids_data[f'bid_price_{i}'] = 0.0
-                bids_data[f'bid_qty_{i}'] = 0
+    def __flatten_order_book(self, order_book: OrderBook, ticker: str, depth:int = 10) -> tuple:
+        # Извлекаем цены и количества для bids
+        bid_prices = []
+        bid_quantities = []
+        for i, bid in enumerate(order_book.bids[:depth]):
+            bid_prices.append(float(quotation_to_decimal(bid.price)))
+            bid_quantities.append(bid.quantity)
         
-        # Преобразуем asks в плоскую структуру
-        asks_data = {}
-        for i in range(1, depth + 1):
-            if i <= len(order_book.asks):
-                ask = order_book.asks[i-1]
-                asks_data[f'ask_price_{i}'] = quotation_to_decimal(ask.price)
-                asks_data[f'ask_qty_{i}'] = ask.quantity
-            else:
-                asks_data[f'ask_price_{i}'] = 0.0
-                asks_data[f'ask_qty_{i}'] = 0
+        # Дополняем нулями, если стаканов меньше depth
+        while len(bid_prices) < depth:
+            bid_prices.append(0.0)
+            bid_quantities.append(0)
         
-        # Основные поля
-        return {
-            'figi': order_book.figi,
-            'depth': order_book.depth,
-            'is_consistent': order_book.is_consistent,
-            **bids_data,  # Распаковываем bid_price_1..bid_price_N и bid_qty_1..bid_qty_N
-            **asks_data,  # Распаковываем ask_price_1..ask_price_N и ask_qty_1..ask_qty_N
-            'time': order_book.time,
-            'instrument_uid': order_book.instrument_uid,
-            'order_book_type': str(order_book.order_book_type)
-        }
+        # Извлекаем цены и количества для asks
+        ask_prices = []
+        ask_quantities = []
+        for i, ask in enumerate(order_book.asks[:depth]):
+            ask_prices.append(float(quotation_to_decimal(ask.price)))
+            ask_quantities.append(ask.quantity)
+        
+        # Дополняем нулями, если стаканов меньше depth
+        while len(ask_prices) < depth:
+            ask_prices.append(0.0)
+            ask_quantities.append(0)
+        
+        # Собираем все в один кортеж
+        return (
+            ticker,
+            order_book.time,
+            bid_prices[0],  # Распаковываем bid_price_1..bid_price_N
+            bid_quantities[0],  # Распаковываем bid_qty_1..bid_qty_N
+            ask_prices[0],  # Распаковываем ask_price_1..ask_price_N
+            ask_quantities[0]  # Распаковываем ask_qty_1..ask_qty_N
+            
+        )

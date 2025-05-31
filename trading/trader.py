@@ -52,6 +52,7 @@ class Trader:
         self.__market_data_service = market_data_service
         self.__blogger = blogger
         self.__keeper = keeper
+        self.__tickers: dict[str, str] = collections.defaultdict(None)
 
     async def trade_day(
             self,
@@ -167,7 +168,7 @@ class Trader:
             
             if True: # book.time > current_figi_book.time and datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc) <= signals_before_time:
 
-                self.__keeper.save_data(book)
+                self.__keeper.save_data(book, self.__get_ticker(book.figi))
 
                 for strategy in strategies[book.figi]:
                     """
@@ -345,6 +346,12 @@ class Trader:
                             logger.info(f"Close order status failed: {close_order}")
         return result
 
+    def __add_ticker(self, figi: str, ticker: str) -> None:
+        self.__tickers[figi] = ticker
+
+    def __get_ticker(self, figi: str) -> str:
+        return self.__tickers[figi]
+    
     def __get_today_strategies(self, strategies: list[IStrategy]) -> dict[str, list[IStrategy]]:
         """
         Check and Select stocks for trading today.
@@ -364,6 +371,8 @@ class Trader:
                     and future_settings.api_trade_available_flag:
                 logger.debug(f"Future is ready for trading")
 
+                self.__add_ticker(future_settings.figi, future_settings.ticker)
+                
                 # refresh information by latest info
                 strategy.update_lot_count(future_settings.lot)
                 strategy.update_short_status(future_settings.short_enabled_flag)
@@ -375,6 +384,7 @@ class Trader:
                     logger.info(f"Not found basic asset for future: {future_settings.figi}")
                     continue
 
+                self.__add_ticker(instruments[0].figi, instruments[0].ticker)
                 basic_asset_figi = instruments[0].figi
                 strategy.update_basic_asset_figi(basic_asset_figi)
                 

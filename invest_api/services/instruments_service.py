@@ -116,6 +116,7 @@ class InstrumentService:
             logger.debug(f"{future}")
 
             return FutureSettings(
+                figi=future.figi,
                 ticker=future.ticker,
                 lot=future.lot,
                 short_enabled_flag=future.short_enabled_flag,
