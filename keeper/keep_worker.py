@@ -26,7 +26,7 @@ class KeepWorker:
 
 
     async def worker(self) -> None:
-        conn = await asyncpg.connect("postgres://juman:zemlyanika7&@localhost:5432/mystery")
+        conn = await asyncpg.connect("postgres://juman@127.0.0.1:5432/mystery")
         try:
             batch: list[tuple] = []
             while True:
