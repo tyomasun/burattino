@@ -16,7 +16,7 @@ class Keeper:
     def __init__(self, data_queue: asyncio.Queue) -> None:
         self.__data_queue = data_queue
 
-    def save_data(self, data: OrderBook, ticker: str) -> None:
+    def save_data(self, data: OrderBook, ticker: str = '') -> None:
         try:
             logger.debug(f"Put data to db queue {str(data)}")
             book = data
