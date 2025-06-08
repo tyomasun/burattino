@@ -76,7 +76,7 @@ class GetBookStrategy(IStrategy):
         The method analyzes books and returns his decision.
         """
         logger.debug(f"Start analyze books for {self.settings.figi} strategy {__name__}. ")
-        
+        """
         if not self.__update_recent_books(book):
             return None
 
@@ -87,7 +87,7 @@ class GetBookStrategy(IStrategy):
         if self.settings.short_enabled_flag and self.__is_match_short():
             logger.info(f"Short signal detected {self.settings.figi}, bid = {str(self.__last_book.bids[0].price)}, qty = {str(self.__last_book.bids[0].quantity)}")
             #return self.__make_signal(SignalType.SHORT, self.__short_take, self.__short_stop)
-        
+        """
         return None
 
     def __add_spread(self, dest: list, value: Decimal) -> tuple[list, bool]:
@@ -136,14 +136,18 @@ class GetBookStrategy(IStrategy):
         
         
     def __update_recent_books(self, book) -> bool:
+        if not (book and book.bids and book.asks):
+            logger.error(f"Book without bids or asks: {str(book)}")
+            return False
+        
         if book.figi == self.settings.figi:
-            self.__last_book = book            
+            self.__last_book = book
             return self.__update_spread()
         elif book.figi == self.settings.basic_asset_figi:
             self.__last_paired_book = book            
             return self.__update_spread()
         else:
-            logger.eror(f"Unknown book: {str(book)}")
+            logger.error(f"Unknown book: {str(book)}")
             return False
 
     def __is_match_long(self) -> bool:

@@ -34,6 +34,7 @@ class KeepWorker:
                 logger.debug(f"Get data from queue (size: {self.__data_queue.qsize()}): {data}")
 
                 if data is STOP_SIGNAL:
+                    logger.info("Stop signal has been received.")
                     if batch:
                         await self.__save_batch(conn, batch)
                     self.__data_queue.task_done()
@@ -45,7 +46,8 @@ class KeepWorker:
                 if len(batch) >= BATCH_SIZE:
                     await self.__save_batch(conn, batch)
                     batch = []
-
+            
+            logger.info("The Keeper has completed its work.")
         except Exception as ex:
             logger.error(f"Error saving the data to the database: {repr(ex)}") 
             logger.error(traceback.format_exc())

@@ -127,7 +127,7 @@ class MarketDataStreamService:
         """
         logger.debug(f"Starting async orderbook stream loop")
 
-        while True: # datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc) < trade_before_time:
+        while datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc) < trade_before_time:
             try:
                 logger.debug(f"Starting async orderbook stream")
 
@@ -149,12 +149,12 @@ class MarketDataStreamService:
                         logger.debug(f"market_data: {market_data}")
 
                         # trading will stop at trade_before_time
-                        """
+                        
                         if datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc) >= trade_before_time:
                             logger.debug(f"Time to stop orderbook stream")
                             self.__stop_stream(async_market_data_orderbook_stream)
                             break
-                        """
+                        
                         if market_data.orderbook:
                             yield market_data.orderbook
 

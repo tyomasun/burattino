@@ -6,7 +6,7 @@ from tinkoff.invest.utils import quotation_to_decimal
 
 from configuration.settings import ShareSettings, FutureSettings
 from invest_api.invest_error_decorators import invest_error_logging, invest_api_retry
-from invest_api.utils import moex_exchange_name
+from invest_api.utils import moex_exchange_name, get_next_morning
 
 __all__ = ("InstrumentService")
 
@@ -21,7 +21,7 @@ class InstrumentService:
         self.__token = token
         self.__app_name = app_name
 
-    def moex_today_trading_schedule(self) -> (bool, datetime, datetime):
+    def moex_today_trading_schedule(self) -> (bool, datetime, datetime, datetime):
         """
         :return: Information about trading day status, datetime trading day start, datetime trading day end
         (both on today)
@@ -31,12 +31,16 @@ class InstrumentService:
                 _from=datetime.datetime.utcnow(),
                 _to=datetime.datetime.utcnow() + datetime.timedelta(days=1)
         ):
+            is_trading_day, start_time, end_time, next_time = False, datetime.datetime.utcnow(), datetime.datetime.utcnow(), get_next_morning()
             for day in schedule.days:
                 if day.date.date() == datetime.date.today():
                     logger.info(f"MOEX today schedule: {day}")
-                    return day.is_trading_day, day.start_time, day.end_time
-
-        return False, datetime.datetime.utcnow(), datetime.datetime.utcnow()
+                    is_trading_day, start_time, end_time = day.is_trading_day, day.start_time, day.end_time
+                if day.date.date() == datetime.date.today() + datetime.timedelta(days=1) and day.is_trading_day:
+                    logger.info(f"MOEX next day schedule: {day}")
+                    next_time = day.start_time
+        
+        return is_trading_day, start_time, end_time, next_time
 
     @invest_api_retry()
     @invest_error_logging

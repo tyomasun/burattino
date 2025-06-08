@@ -19,8 +19,10 @@ class Keeper:
     def save_data(self, data: OrderBook, ticker: str) -> None:
         try:
             logger.debug(f"Put data to db queue {str(data)}")
-
-            self.__data_queue.put_nowait(self.__flatten_order_book(data, ticker))
+            book = data
+            if book:
+                book = self.__flatten_order_book(data, ticker)
+            self.__data_queue.put_nowait(book)
         except Exception as ex:
             logger.error(f"Error put data to db queue {repr(ex)}")
             logger.error(traceback.format_exc())

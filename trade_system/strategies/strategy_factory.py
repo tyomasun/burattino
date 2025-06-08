@@ -17,3 +17,4 @@ class StrategyFactory:
                 return GetBookStrategy(*args, **kwargs)
             case _:
                 return None
+        

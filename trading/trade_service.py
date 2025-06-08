@@ -13,6 +13,7 @@ from invest_api.services.market_data_service import MarketDataService
 from invest_api.services.operations_service import OperationService
 from invest_api.services.orders_service import OrderService
 from invest_api.services.market_data_stream_service import MarketDataStreamService
+from invest_api.utils import get_next_morning
 from trade_system.strategies.base_strategy import IStrategy
 from trading.trader import Trader
 
@@ -75,21 +76,20 @@ class TradeService:
 
         while True:
             logger.info("Check trading schedule on today")
-
+            next_time = get_next_morning()
             try:
-                is_trading_day, start_time, end_time = \
-                    self.__instrument_service.moex_today_trading_schedule()
+                is_trading_day, start_time, end_time, next_time = self.__instrument_service.moex_today_trading_schedule()
                 # for tests purposes
                 #is_trading_day, start_time, end_time = \
                 #    True, \
                 #    datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc) + datetime.timedelta(seconds=10), \
                 #    datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc) + datetime.timedelta(minutes=12)
 
-                if True: # is_trading_day and datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc) <= end_time:
-                    logger.info(f"Today is trading day. Trading will start after {start_time}")
+                if is_trading_day and datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc) <= end_time:
+                    logger.info(f"Today is trading day. Start time: {start_time}, End time: {end_time}, Next time: {next_time}")
 
                     await TradeService.__sleep_to(
-                        start_time + datetime.timedelta(seconds=self.__trading_settings.delay_start_after_open)
+                        start_time # + datetime.timedelta(seconds=self.__trading_settings.delay_start_after_open)
                     )
 
                     logger.info(f"Trading day has been started")
@@ -111,23 +111,25 @@ class TradeService:
                         self.__account_settings.min_rub_on_account
                     )
 
-                    logger.info("Trading day has been completed")
+                    logger.info(f"Trading day has been completed. Next time {next_time}")
                 else:
-                    logger.info("Today is not trading day. Sleep on next morning")
+                    logger.info(f"Today is not trading day. Sleep on next morning {next_time}")
             except Exception as ex:
                 logger.error(f"Start trading today error: {repr(ex)}")
                 logger.error(traceback.format_exc())
                 raise ex
 
             logger.info("Sleep to next morning")
-            await TradeService.__sleep_to_next_morning()
+            await TradeService.__sleep_to_next_morning(next_time)
 
+        
     @staticmethod
-    async def __sleep_to_next_morning() -> None:
+    async def __sleep_to_next_morning(next_time) -> None:
+        """
         future = datetime.datetime.utcnow() + datetime.timedelta(days=1)
         next_time = datetime.datetime(year=future.year, month=future.month, day=future.day,
-                                      hour=6, minute=0, tzinfo=datetime.timezone.utc)
-
+                                      hour=4, minute=0, tzinfo=datetime.timezone.utc)
+        """
         await TradeService.__sleep_to(next_time)
 
     @staticmethod

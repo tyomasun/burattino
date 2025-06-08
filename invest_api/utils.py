@@ -1,3 +1,4 @@
+import datetime
 import uuid
 from decimal import Decimal
 
@@ -13,7 +14,7 @@ def rub_currency_name() -> str:
 
 
 def moex_exchange_name() -> str:
-    return "MOEX"
+    return "MOEX_PLUS_WEEKEND"
 
 
 def moneyvalue_to_decimal(money_value: MoneyValue) -> Decimal:
@@ -54,3 +55,6 @@ def invest_api_retry_status_codes() -> set[StatusCode]:
     return {StatusCode.CANCELLED, StatusCode.DEADLINE_EXCEEDED, StatusCode.RESOURCE_EXHAUSTED,
             StatusCode.FAILED_PRECONDITION, StatusCode.ABORTED, StatusCode.INTERNAL,
             StatusCode.UNAVAILABLE, StatusCode.DATA_LOSS, StatusCode.UNKNOWN}
+
+def get_next_morning() -> datetime:
+    return datetime.datetime.combine(datetime.datetime.now(datetime.UTC), datetime.time.min) + datetime.timedelta(days=1)

@@ -123,8 +123,7 @@ class Trader:
         logger.info(f"Subscribe and read OrderBook for {strategies.keys()}")
 
         # End trading before close trade session
-        trade_before_time: datetime = \
-            trade_day_end_time - datetime.timedelta(seconds=trading_settings.stop_trade_before_close)
+        trade_before_time: datetime = trade_day_end_time # - datetime.timedelta(seconds=trading_settings.stop_trade_before_close)
 
         signals_before_time: datetime = \
             trade_day_end_time - datetime.timedelta(minutes=trading_settings.stop_signals_before_close)
@@ -138,96 +137,7 @@ class Trader:
                 list(strategies.keys()),
                 trade_before_time
         ):
-            current_figi_book = current_books.setdefault(book.figi, book)
-            if book.time < current_figi_book.time:
-                # it happens (based on API documentation)
-                logger.debug("Skip candle from past.")
-                continue
-
-            # check price from candle for take or stop price levels
-            # current_trade_order = self.__today_trade_results.get_current_trade_order(candle.figi)
-            
-            """
-            if current_trade_order:
-                high, low = quotation_to_decimal(candle.high), quotation_to_decimal(candle.low)
-
-                # Logic is:
-                # if stop or take price level is between high and low, then stop or take will be executed
-                
-                try:
-                    if low <= current_trade_order.signal.stop_loss_level <= high:
-                        logger.info(f"STOP LOSS: {current_trade_order}")
-                        self.__close_position_and_send_message(account_id, candle.figi, strategies)
-
-                    elif low <= current_trade_order.signal.take_profit_level <= high:
-                        logger.info(f"TAKE PROFIT: {current_trade_order}")
-                        self.__close_position_and_send_message(account_id, candle.figi, strategies)
-                except Exception as ex:
-                    logger.error(f"Error check Stop loss and Take profit levels: {repr(ex)}")
-            """
-            
-            if True: # book.time > current_figi_book.time and datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc) <= signals_before_time:
-
-                self.__keeper.save_data(book, self.__get_ticker(book.figi))
-
-                for strategy in strategies[book.figi]:
-                    """
-                    if not self.__market_data_service.is_stock_ready_for_trading(strategy.settings.figi):
-                                logger.info(f"New signal has been skipped. Stock isn't ready for trading")
-                    """
-                    signal_new = strategy.analyze_books(book)
-                    
-                    """
-                    if signal_new:
-                        logger.info(f"New signal: {signal_new}")
-    
-                        try:
-                            if signal_new.signal_type == SignalType.CLOSE:
-                                if current_trade_order:
-                                    logger.info(f"Close position by close signal: {current_trade_order}")
-                                    self.__close_position_and_send_message(account_id, strategy.settings.figi, strategies)
-                                else:
-                                    logger.info(f"New signal has been skipped. No open position to close.")
-    
-                            elif current_trade_order:
-                                logger.info(f"New signal has been skipped. Previous signal is still alive.")
-    
-                            elif not self.__market_data_service.is_stock_ready_for_trading(strategy.settings.figi):
-                                logger.info(f"New signal has been skipped. Stock isn't ready for trading")
-    
-                            else:
-                                available_lots = self.__open_position_lots_count(
-                                    account_id,
-                                    strategy.settings.max_lots_per_order,
-                                    quotation_to_decimal(candle.close),
-                                    strategy.settings.lot_size
-                                )
-    
-                                logger.debug(f"Available lots: {available_lots}")
-                                if available_lots > 0:
-                                    open_order = self.__order_service.post_market_order(
-                                        account_id=account_id,
-                                        figi=strategy.settings.figi,
-                                        count_lots=available_lots,
-                                        is_buy=(signal_new.signal_type == SignalType.LONG)
-                                    )
-                                    if open_order.execution_report_status == OrderExecutionReportStatus.EXECUTION_REPORT_STATUS_FILL or \
-                                            open_order.execution_report_status == OrderExecutionReportStatus.EXECUTION_REPORT_STATUS_PARTIALLYFILL:
-                                        open_position = self.__today_trade_results.open_position(
-                                            strategy.settings.figi,
-                                            open_order.order_id,
-                                            signal_new
-                                        )
-                                        self.__blogger.open_position_message(open_position)
-                                        logger.info(f"Open position: {open_position}")
-                                    else:
-                                        logger.info(f"Open order status failed: {open_order}")
-                                else:
-                                    logger.info(f"New signal has been skipped. No available money")
-                        except Exception as ex:
-                            logger.error(f"Error open new position by new signal: {repr(ex)}")
-                    """
-            current_books[book.figi] = book
+            self.__keeper.save_data(book, self.__get_ticker(book.figi))
 
         self.__keeper.save_data(None)
         logger.info("Today trading has been completed")
