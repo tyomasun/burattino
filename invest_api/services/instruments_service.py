@@ -33,10 +33,10 @@ class InstrumentService:
         ):
             is_trading_day, start_time, end_time, next_time = False, datetime.datetime.utcnow(), datetime.datetime.utcnow(), get_next_morning()
             for day in schedule.days:
-                if day.date.date() == datetime.date.today():
+                if day.date.date() == datetime.datetime.now(datetime.UTC).date():
                     logger.info(f"MOEX today schedule: {day}")
                     is_trading_day, start_time, end_time = day.is_trading_day, day.start_time, day.end_time
-                if day.date.date() == datetime.date.today() + datetime.timedelta(days=1) and day.is_trading_day:
+                if day.date.date() == datetime.datetime.now(datetime.UTC).date() + datetime.timedelta(days=1) and day.is_trading_day:
                     logger.info(f"MOEX next day schedule: {day}")
                     next_time = day.start_time
         
@@ -60,7 +60,7 @@ class InstrumentService:
                     from_=_from,
                     to=_to
             ).exchanges:
-                logger.debug(f"{schedule}")
+                logger.info(f"Schedule = {schedule}")
                 result.append(schedule)
 
         return result

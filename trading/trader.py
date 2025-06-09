@@ -142,7 +142,7 @@ class Trader:
         self.__keeper.save_data(None)
         logger.info("Today trading has been completed")
 
-    
+        
     def __summary_today_trade_results(
             self,
             account_id: str,

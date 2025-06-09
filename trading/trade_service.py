@@ -85,7 +85,7 @@ class TradeService:
                 #    datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc) + datetime.timedelta(seconds=10), \
                 #    datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc) + datetime.timedelta(minutes=12)
 
-                if is_trading_day and datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc) <= end_time:
+                if is_trading_day and datetime.datetime.now(datetime.UTC) <= end_time:
                     logger.info(f"Today is trading day. Start time: {start_time}, End time: {end_time}, Next time: {next_time}")
 
                     await TradeService.__sleep_to(
@@ -113,7 +113,7 @@ class TradeService:
 
                     logger.info(f"Trading day has been completed. Next time {next_time}")
                 else:
-                    logger.info(f"Today is not trading day. Sleep on next morning {next_time}")
+                    logger.info(f"This is not the time for trading. Sleep on next morning {next_time}")
             except Exception as ex:
                 logger.error(f"Start trading today error: {repr(ex)}")
                 logger.error(traceback.format_exc())

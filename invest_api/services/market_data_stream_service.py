@@ -4,7 +4,7 @@ import logging
 from typing import Generator
 
 from tinkoff.invest import Client, CandleInstrument, SubscriptionInterval, InfoInstrument, TradeInstrument, \
-    MarketDataResponse, Candle, AsyncClient, AioRequestError, OrderBook, OrderBookInstrument
+    MarketDataResponse, Candle, AsyncClient, AioRequestError, OrderBook, OrderBookInstrument, SubscribeInfoResponse
 from tinkoff.invest.market_data_stream.async_market_data_stream_manager import AsyncMarketDataStreamManager
 from tinkoff.invest.market_data_stream.market_data_stream_interface import IMarketDataStreamManager
 from tinkoff.invest.market_data_stream.market_data_stream_manager import MarketDataStreamManager
@@ -135,6 +135,18 @@ class MarketDataStreamService:
                     async_market_data_orderbook_stream: AsyncMarketDataStreamManager = client.create_market_data_stream()
 
                     logger.info(f"Subscribe orderbook: {figies}")
+
+                    """
+                    async_market_data_orderbook_stream.info.subscribe(
+                        [
+                            InfoInstrument(
+                                instrument_id=figi
+                            )
+                            for figi in figies
+                        ]
+                    )
+                    """
+                    
                     async_market_data_orderbook_stream.order_book.subscribe(
                         [
                             OrderBookInstrument(
@@ -170,7 +182,7 @@ class MarketDataStreamService:
             finally:
                 self.__stop_stream(async_market_data_orderbook_stream)
 
-
+    
     @staticmethod
     def __stop_stream(stream: IMarketDataStreamManager) -> None:
         if stream:
