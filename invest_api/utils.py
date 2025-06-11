@@ -3,7 +3,7 @@ import uuid
 from decimal import Decimal
 
 from grpc import StatusCode
-from tinkoff.invest import MoneyValue, Quotation, Candle, HistoricCandle
+from tinkoff.invest import MoneyValue, Quotation, Candle, HistoricCandle, TradingDay
 from tinkoff.invest.utils import quotation_to_decimal, decimal_to_quotation
 
 __all__ = ()
@@ -58,3 +58,19 @@ def invest_api_retry_status_codes() -> set[StatusCode]:
 
 def get_next_morning() -> datetime:
     return datetime.datetime.combine(datetime.datetime.now(datetime.UTC), datetime.time.min) + datetime.timedelta(days=1)
+
+
+def is_time_in_regular_session(trading_day: TradingDay, time: datetime) -> bool:
+    
+    # Находим все интервалы с типом 'regular_trading_session'
+    regular_intervals = [
+        interval.interval 
+        for interval in trading_day.intervals 
+        if interval.type == 'regular_trading_session'
+    ]
+    
+    # Проверяем, находится ли текущее время в каком-либо из этих интервалов
+    return any(
+        interval.start_ts <= time <= interval.end_ts
+        for interval in regular_intervals
+    )

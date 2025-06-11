@@ -174,7 +174,7 @@ class MarketDataStreamService:
                 logger.error("AioRequestError code=%s repr=%s details=%s", str(ex.code), repr(ex), ex.details)
 
                 if ex.code in invest_api_retry_status_codes():
-                    logger.debug(f"Status code available for reconnect")
+                    logger.info(f"Status code available for reconnect")
                     await asyncio.sleep(1)
                 else:
                     raise
