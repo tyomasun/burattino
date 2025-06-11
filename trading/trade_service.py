@@ -135,9 +135,8 @@ class TradeService:
     @staticmethod
     async def __sleep_to(next_time: datetime) -> None:
         now = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
-
-        logger.info(f"Sleep from {now} to {next_time}")
         total_seconds = (next_time - now).total_seconds()
 
         if total_seconds > 0:
+            logger.info(f"Sleep from {now} to {next_time}")
             await asyncio.sleep(total_seconds)
