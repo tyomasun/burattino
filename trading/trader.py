@@ -120,7 +120,7 @@ class Trader:
             strategies: dict[str, list[IStrategy]],
             trade_day_end_time: datetime
     ) -> None:
-        logger.info(f"Subscribe and read OrderBook for {strategies.keys()}")
+        
 
         # End trading before close trade session
         trade_before_time: datetime = trade_day_end_time # - datetime.timedelta(seconds=trading_settings.stop_trade_before_close)
@@ -129,9 +129,10 @@ class Trader:
             trade_day_end_time - datetime.timedelta(minutes=trading_settings.stop_signals_before_close)
         logger.debug(f"Stop time: signals - {signals_before_time}, trading - {trade_before_time}")
 
-        current_books: dict[str, OrderBook] = dict()
+        
         self.__today_trade_results = TradeResults()
 
+        logger.info(f"Subscribe and read OrderBook for {strategies.keys()}, end_time = {})
         
         async for book in self.__stream_service.start_async_orderbook_stream(
                 list(strategies.keys()),
